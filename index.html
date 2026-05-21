@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Система ТО Спецтехники 2026</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: Arial, sans-serif;
+    }
+
+    body {
+      background: #f4f6f9;
+      color: #222;
+    }
+
+    header {
+      background: #0f172a;
+      color: white;
+      padding: 20px;
+      text-align: center;
+      font-size: 28px;
+      font-weight: bold;
+    }
+
+    .container {
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      min-height: 100vh;
+    }
+
+    aside {
+      background: #111827;
+      color: white;
+      padding: 20px;
+    }
+
+    aside h2 {
+      margin-bottom: 15px;
+      font-size: 20px;
+    }
+
+    aside ul {
+      list-style: none;
+    }
+
+    aside li {
+      padding: 12px;
+      margin-bottom: 10px;
+      background: #1f2937;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+
+    aside li:hover {
+      background: #2563eb;
+    }
+
+    main {
+      padding: 25px;
+    }
+
+    .card {
+      background: white;
+      padding: 20px;
+      border-radius: 14px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+    }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+
+    .metric {
+      background: linear-gradient(135deg, #2563eb, #1d4ed8);
+      color: white;
+      padding: 20px;
+      border-radius: 16px;
+    }
+
+    .metric h3 {
+      font-size: 15px;
+      margin-bottom: 10px;
+    }
+
+    .metric p {
+      font-size: 30px;
+      font-weight: bold;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 15px;
+    }
+
+    table th {
+      background: #0f172a;
+      color: white;
+      padding: 12px;
+      border: 1px solid #ddd;
+    }
+
+    table td {
+      padding: 10px;
+      border: 1px solid #ddd;
+      font-size: 14px;
+    }
+
+    .search {
+      margin-bottom: 15px;
+    }
+
+    .search input {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #ccc;
+      border-radius: 10px;
+      font-size: 15px;
+    }
+
+    canvas {
+      margin-top: 20px;
+    }
+
+    .upload-box {
+      border: 2px dashed #2563eb;
+      border-radius: 14px;
+      padding: 30px;
+      text-align: center;
+      background: #eff6ff;
+      margin-bottom: 20px;
+    }
+
+    .upload-box input {
+      margin-top: 15px;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    @media(max-width: 900px) {
+      .container {
+        grid-template-columns: 1fr;
+      }
+
+      aside {
+        display: flex;
+        overflow-x: auto;
+      }
+
+      aside ul {
+        display: flex;
+        gap: 10px;
+      }
+
+      aside li {
+        min-width: 180px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  СИСТЕМА УПРАВЛЕНИЯ ТО СПЕЦТЕХНИКИ 2026
+</header>
+
+<div class="container">
+
+  <aside>
+    <div>
+      <h2>РАЗДЕЛЫ</h2>
+      <ul>
+        <li onclick="showSection('dashboard')">Главная</li>
+        <li onclick="showSection('grafik')">Годовой график ТО</li>
+        <li onclick="showSection('tehnika')">Список техники</li>
+        <li onclick="showSection('balhash')">ТО Балхаш</li>
+        <li onclick="showSection('nik')">ТО Николаевка</li>
+        <li onclick="showSection('smazka')">Смазочные материалы</li>
+        <li onclick="showSection('dolivka')">Доливка</li>
+        <li onclick="showSection('trud')">Трудоёмкость</li>
+        <li onclick="showSection('karty')">Карты ТО</li>
+      </ul>
+    </div>
+  </aside>
+
+  <main>
+
+    <section id="dashboard">
+      <div class="cards">
+        <div class="metric">
+          <h3>Всего техники</h3>
+          <p id="totalMachines">0</p>
+        </div>
+
+        <div class="metric">
+          <h3>ТО в июне</h3>
+          <p id="juneTO">0</p>
+        </div>
+
+        <div class="metric">
+          <h3>Участков</h3>
+          <p>3</p>
+        </div>
+
+        <div class="metric">
+          <h3>Карт ТО</h3>
+          <p>26</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Статистика ТО</h2>
+        <canvas id="toChart"></canvas>
+      </div>
+    </section>
+
+    <section id="grafik" class="hidden">
+      <div class="card">
+        <h2>ГОДОВОЙ ГРАФИК ТО</h2>
+
+        <div class="search">
+          <input type="text" id="grafikSearch" placeholder="Поиск техники..." onkeyup="filterTable('grafikTable', this.value)">
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:15px;margin-bottom:15px;">
+
+          <select id="monthFilter" onchange="applyGrafikFilters()" style="padding:12px;border-radius:10px;border:1px solid #ccc;">
+            <option value="">Все месяцы</option>
+            <option value="январ">Январь</option>
+            <option value="феврал">Февраль</option>
+            <option value="март">Март</option>
+            <option value="апрел">Апрель</option>
+            <option value="май">Май</option>
+            <option value="июн">Июнь</option>
+            <option value="июл">Июль</option>
+            <option value="август">Август</option>
+            <option value="сент">Сентябрь</option>
+            <option value="октя">Октябрь</option>
+            <option value="нояб">Ноябрь</option>
+            <option value="дека">Декабрь</option>
+          </select>
+
+          <select id="toFilter" onchange="applyGrafikFilters()" style="padding:12px;border-radius:10px;border:1px solid #ccc;">
+            <option value="">Все виды ТО</option>
+            <option value="ТО-1">ТО-1</option>
+            <option value="ТО-2">ТО-2</option>
+            <option value="ТО-3">ТО-3</option>
+            <option value="СО">СО</option>
+          </select>
+
+          <select id="sortDays" onchange="sortGrafikByDate()" style="padding:12px;border-radius:10px;border:1px solid #ccc;">
+            <option value="">Сортировка по дням</option>
+            <option value="asc">По возрастанию</option>
+            <option value="desc">По убыванию</option>
+          </select>
+
+        </div>
+
+        <table id="grafikTable">
+          <thead>
+            <tr>
+              <th>Участок</th>
+              <th>Техника</th>
+              <th>Модель</th>
+              <th>Месяц ТО</th>
+              <th>Моточасы</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="tehnika" class="hidden">
+      <div class="card">
+        <h2>СПИСОК ТЕХНИКИ</h2>
+
+        <div class="search">
+          <input type="text" placeholder="Поиск техники..." onkeyup="filterTable('tehnikaTable', this.value)">
+        </div>
+
+        <table id="tehnikaTable">
+          <thead>
+            <tr>
+              <th>Участок</th>
+              <th>Марка</th>
+              <th>Модель</th>
+              <th>Инвентарный №</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="balhash" class="hidden">
+      <div class="card">
+        <h2>ТО БАЛХАШ — ИЮНЬ 2026</h2>
+
+        <table id="balhashTable">
+          <thead>
+            <tr>
+              <th>Техника</th>
+              <th>Вид ТО</th>
+              <th>Дата</th>
+              <th>Ответственный</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="nik" class="hidden">
+      <div class="card">
+        <h2>ТО НИКОЛАЕВКА — ИЮНЬ 2026</h2>
+
+        <table id="nikTable">
+          <thead>
+            <tr>
+              <th>Техника</th>
+              <th>Вид ТО</th>
+              <th>Дата</th>
+              <th>Ответственный</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="smazka" class="hidden">
+      <div class="card">
+        <h2>СМАЗОЧНЫЕ МАТЕРИАЛЫ</h2>
+
+        <table id="smazkaTable">
+          <thead>
+            <tr>
+              <th>Материал</th>
+              <th>Количество</th>
+              <th>Участок</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="dolivka" class="hidden">
+      <div class="card">
+        <h2>ДОЛИВКА НА ИЮНЬ</h2>
+
+        <table id="dolivkaTable">
+          <thead>
+            <tr>
+              <th>Материал</th>
+              <th>Количество</th>
+              <th>Техника</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="trud" class="hidden">
+      <div class="card">
+        <h2>ТРУДОЁМКОСТЬ ТО</h2>
+
+        <table id="trudTable">
+          <thead>
+            <tr>
+              <th>Техника</th>
+              <th>ТО-1</th>
+              <th>ТО-2</th>
+              <th>ТО-3</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="karty" class="hidden">
+      <div class="card">
+        <h2>КАРТЫ ТЕХНИЧЕСКОГО ОБСЛУЖИВАНИЯ</h2>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Модель техники</th>
+              <th>Статус</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            <tr><td>IVECO</td><td>Загружено</td></tr>
+            <tr><td>R210LC-7</td><td>Загружено</td></tr>
+            <tr><td>R220LC-9S</td><td>Загружено</td></tr>
+            <tr><td>R450LC-7</td><td>Загружено</td></tr>
+            <tr><td>R520LC-9S</td><td>Загружено</td></tr>
+            <tr><td>Doosan 1000</td><td>Загружено</td></tr>
+            <tr><td>VOLVO EC700</td><td>Загружено</td></tr>
+            <tr><td>XCMG XE1350</td><td>Загружено</td></tr>
+            <tr><td>Hitachi ZX470</td><td>Загружено</td></tr>
+            <tr><td>JCB330</td><td>Загружено</td></tr>
+            <tr><td>Komatsu275</td><td>Загружено</td></tr>
+            <tr><td>SEM 822</td><td>Загружено</td></tr>
+            <tr><td>SDLG 975F</td><td>Загружено</td></tr>
+            <tr><td>Sany SKT115S</td><td>Загружено</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<script>
+
+function showSection(id) {
+  document.querySelectorAll('main section').forEach(section => {
+    section.classList.add('hidden');
+  });
+
+  document.getElementById(id).classList.remove('hidden');
+}
+
+function filterTable(tableId, value) {
+  const filter = value.toLowerCase();
+  const rows = document.querySelectorAll(`#${tableId} tbody tr`);
+
+  rows.forEach(row => {
+    const text = row.innerText.toLowerCase();
+    row.style.display = text.includes(filter) ? '' : 'none';
+  });
+}
+
+function applyGrafikFilters() {
+  const month = document.getElementById('monthFilter').value.toLowerCase();
+  const toType = document.getElementById('toFilter').value.toLowerCase();
+
+  const rows = document.querySelectorAll('#grafikTable tbody tr');
+
+  rows.forEach(row => {
+    const text = row.innerText.toLowerCase();
+
+    const monthMatch = month === '' || text.includes(month);
+    const toMatch = toType === '' || text.includes(toType);
+
+    row.style.display = (monthMatch && toMatch) ? '' : 'none';
+  });
+}
+
+function sortGrafikByDate() {
+  const tbody = document.querySelector('#grafikTable tbody');
+  const rows = Array.from(tbody.querySelectorAll('tr'));
+  const direction = document.getElementById('sortDays').value;
+
+  rows.sort((a, b) => {
+    const aText = a.cells[3] ? a.cells[3].innerText : '';
+    const bText = b.cells[3] ? b.cells[3].innerText : '';
+
+    const aDate = new Date(aText.split('.').reverse().join('-'));
+    const bDate = new Date(bText.split('.').reverse().join('-'));
+
+    if (direction === 'desc') {
+      return bDate - aDate;
+    }
+
+    return aDate - bDate;
+  });
+
+  rows.forEach(row => tbody.appendChild(row));
+}
+
+function fillTable(tableId, data) {
+  const tbody = document.querySelector(`#${tableId} tbody`);
+  tbody.innerHTML = '';
+
+  data.forEach(row => {
+    const tr = document.createElement('tr');
+
+    row.forEach(cell => {
+      const td = document.createElement('td');
+      td.textContent = cell;
+      tr.appendChild(td);
+    });
+
+    tbody.appendChild(tr);
+  });
+}
+
+async function loadExcel(fileName, tableId) {
+  try {
+    const response = await fetch(fileName);
+    const arrayBuffer = await response.arrayBuffer();
+
+    const workbook = XLSX.read(arrayBuffer, {
+      type: 'array'
+    });
+
+    const sheetName = workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[sheetName];
+
+    const data = XLSX.utils.sheet_to_json(worksheet, {
+      header: 1,
+      defval: ''
+    });
+
+    if (data.length > 1) {
+      fillTable(tableId, data.slice(1));
+    }
+
+    return Math.max(data.length - 1, 0);
+
+  } catch (error) {
+    console.error('Ошибка загрузки файла:', fileName, error);
+    return 0;
+  }
+}
+
+async function initializeSite() {
+
+  const grafikCount = await loadExcel('ГОДОВОЙ_ГРАФИК_ТО_2026.xlsx', 'grafikTable');
+  const tehnikaCount = await loadExcel('список_техники_по_участкам.xlsx', 'tehnikaTable');
+  const balhashCount = await loadExcel('ТО_БАЛХАШ_НА ИЮНЬ.xlsx', 'balhashTable');
+  const nikCount = await loadExcel('ТО_Николаевка_Июнь_2026(2).xlsx', 'nikTable');
+  const smazkaCount = await loadExcel('смазка балхаш.xlsx', 'smazkaTable');
+  const dolivkaCount = await loadExcel('ДОЛИВКА на Июнь.xlsx', 'dolivkaTable');
+  const trudCount = await loadExcel('Трудоёмкость_ТО_спецтехника.xlsx', 'trudTable');
+
+  document.getElementById('totalMachines').textContent = tehnikaCount;
+  document.getElementById('juneTO').textContent = balhashCount + nikCount;
+
+  const ctx = document.getElementById('toChart');
+
+  new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: [
+        'Годовой график',
+        'Балхаш',
+        'Николаевка',
+        'Смазка',
+        'Доливка',
+        'Трудоемкость'
+      ],
+      datasets: [{
+        label: 'Количество записей',
+        data: [
+          grafikCount,
+          balhashCount,
+          nikCount,
+          smazkaCount,
+          dolivkaCount,
+          trudCount
+        ]
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false
+    }
+  });
+}
+
+initializeSite();
+
+</script>
+
+</body>
+</html>
